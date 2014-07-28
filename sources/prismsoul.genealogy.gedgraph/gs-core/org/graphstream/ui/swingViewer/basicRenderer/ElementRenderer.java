@@ -34,16 +34,22 @@ package org.graphstream.ui.swingViewer.basicRenderer;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 
+import org.graphstream.graph.Edge;
 import org.graphstream.graph.Element;
+import org.graphstream.graph.Node;
 import org.graphstream.ui.geom.Point3;
 import org.graphstream.ui.graphicGraph.GraphicElement;
+import org.graphstream.ui.graphicGraph.GraphicNode;
 import org.graphstream.ui.graphicGraph.GraphicSprite;
 import org.graphstream.ui.graphicGraph.StyleGroup;
 import org.graphstream.ui.graphicGraph.StyleGroup.ElementEvents;
 import org.graphstream.ui.graphicGraph.stylesheet.StyleConstants;
 import org.graphstream.ui.graphicGraph.stylesheet.StyleConstants.Units;
+import org.graphstream.ui.graphicGraph.stylesheet.Value;
+import org.graphstream.ui.graphicGraph.stylesheet.Values;
 import org.graphstream.ui.swingViewer.util.Camera;
 import org.graphstream.ui.swingViewer.util.FontCache;
 
@@ -204,7 +210,6 @@ public abstract class ElementRenderer {
 	protected void renderText(StyleGroup group, Graphics2D g, Camera camera,
 			GraphicElement element) {
 		String label = element.getLabel();
-		
 		if (label != null && group.getTextMode() != StyleConstants.TextMode.HIDDEN
 				&& group.getTextVisibilityMode() != StyleConstants.TextVisibilityMode.HIDDEN) {
 
@@ -234,13 +239,49 @@ public abstract class ElementRenderer {
 						.getY(), 0);
 			}
 
+			// find nearby nodes
+			Node node = element.myGraph().getNode(element.getId());
+			int gx = 0;
+			int gy = 0;
+			int count = 0;
+			for (Edge edge : node.getEachEdge())
+			{
+				Node othernode;
+				if (node == edge.getNode0())
+					othernode = edge.getNode1();
+				else
+					othernode = edge.getNode0();
+				gx += ((GraphicNode)othernode).getX();
+				gy += ((GraphicNode)othernode).getY();
+				count++;
+			}
+			gx /= count;
+			gy /= count;
+			gx -= element.getX();
+			gy -= element.getY();
+			gx = (int)camera.getMetrics().lengthToPx(new Values(new Value(Units.GU, new Double(gx))), 0);
+			gy = (int)camera.getMetrics().lengthToPx(new Values(new Value(Units.GU, new Double(gy))), 0);
+			p.setX(p.x - gx / 3);
+			p.setY(p.y + gy / 3);
+
 			AffineTransform Tx = g.getTransform();
 			Color c = g.getColor();
 
 			g.setColor(textColor);
 			g.setFont(textFont);
 			g.setTransform(new AffineTransform());
-			g.drawString(label, (float) p.x, (float) (p.y + textSize / 3)); // approximation
+			String[] lines = label.split("\n");
+			int nblines = lines.length;
+			Point3 start = new Point3(p);
+			int height = textSize;
+			start.setY(start.y - (nblines - 1) * height);
+			for (int iLine = 0; iLine < lines.length; iLine++)
+			{
+				g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+				int width = g.getFontMetrics().stringWidth(lines[iLine]);
+				g.drawString(lines[iLine], (float) start.x - width / 2, (float) (start.y + textSize / 3)); // approximation
+				start.y += height;
+			}
 			// to gain time.
 			g.setTransform(Tx);
 			g.setColor(c);
