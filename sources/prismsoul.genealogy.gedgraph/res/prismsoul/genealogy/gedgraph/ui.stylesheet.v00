@@ -1,0 +1,9 @@
+node
+{
+	shape: freeplane;
+	text-mode: normal;
+	text-background-mode: plain;
+	size-mode: fit;
+	fill-color: green;
+	text-size: 9;
+}
